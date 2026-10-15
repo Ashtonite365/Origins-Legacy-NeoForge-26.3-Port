@@ -1,0 +1,51 @@
+# Origins: Legacy NeoForge 26.3 Port (unofficial, beta). MIT, (c) 2020-2021 apace100; forward port by BluSpring.
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+issueTrackerURL="https://github.com/BluSpring/Origins-Legacy/issues"
+[[mods]]
+    modId="origins_legacy_port263"
+    version="1.12.19-port.1-beta"
+    displayName="Origins: Legacy NeoForge 26.3 Port"
+    authors="Ashtonite365 (port), BluSpring / apace100 (original)"
+    description='''Unofficial beta NeoForge 26.3 port of Origins: Legacy 1.12.19 by BluSpring (based on Origins by apace100), including Apoli-Legacy and Calio-Legacy. Content keeps the original "origins" namespace.'''
+# apoli_legacy_port263 and calio_legacy_port263 are mod entries for the bundled Apoli/Calio (content namespaces stay apoli:/calio:) in this one jar: no @Mod class of their own.
+# Origins is the single @Mod and calls Apoli.init first, so load order is code-driven.
+[[mods]]
+    modId="apoli_legacy_port263"
+    version="2.12.13-26.3-neoforge-port"
+    displayName="Apoli: Legacy"
+    authors="apace100, BluSpring"
+    description='''Bundled with Origins: Legacy (namespace entry; initialised by Origins).'''
+[[mods]]
+    modId="calio_legacy_port263"
+    version="1.11.4-26.3-neoforge-port"
+    displayName="Calio: Legacy"
+    authors="apace100, BluSpring"
+    description='''Bundled with Origins: Legacy (namespace entry; no entrypoint, its classes are used by Apoli/Origins).'''
+[[mixins]]
+    config="origins.mixins.json"
+[[mixins]]
+    config="apoli.mixins.json"
+[[mixins]]
+    config="calio.mixins.json"
+[[accessTransformers]]
+    file="META-INF/accesstransformer.cfg"
+[[dependencies.origins_legacy_port263]]
+    modId="neoforge"
+    type="required"
+    versionRange="[26.3.0.76,)"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.origins_legacy_port263]]
+    modId="minecraft"
+    type="required"
+    versionRange="[26.3]"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.origins_legacy_port263]]
+    modId="cloth_config"
+    type="required"
+    versionRange="[26.3.159,)"
+    ordering="AFTER"
+    side="BOTH"

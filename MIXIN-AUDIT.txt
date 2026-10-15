@@ -1,0 +1,58 @@
+checked 244 ok 220 flagged 24
+apoli/mixin/CameraMixin.java: method Lnet/minecraft/client/Options;getCameraType()Lnet/minecraft/client/CameraType; not in Camera
+apoli/mixin/CameraMixin.java: method Lnet/minecraft/client/CameraType;isFirstPerson()Z not in Camera
+apoli/mixin/CameraMixin.java: method Lnet/minecraft/client/CameraType;isMirrored()Z not in Camera
+apoli/mixin/ClientPlayerEntityMixin.java: @At LocalPlayer.setSprinting(Z)V
+apoli/mixin/ClientPlayerInteractionManagerMixin.java: @At LocalPlayer.isSecondaryUseActive()Z
+apoli/mixin/ClientPlayerInteractionManagerMixin.java: @At LocalPlayer.isSecondaryUseActive()Z
+apoli/mixin/ConsumableMixin.java: @At LivingEntity.gameEvent(Lnet/minecraft/core/Holder;)V
+apoli/mixin/ElytraFeatureRendererMixin.java: @At ItemStack.get(Lnet/minecraft/core/component/DataComponentType;)Ljava/lang/Object;
+apoli/mixin/EntityMixin.java: @At BlockState.getCollisionShape(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/phys/shapes/VoxelShape;
+apoli/mixin/EquipmentLayerRendererMixin.java: @At ItemStack.get(Lnet/minecraft/core/component/DataComponentType;)Ljava/lang/Object;
+apoli/mixin/EquipmentMixin.java: @At Player.getItemBySlot(Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/world/item/ItemStack;
+apoli/mixin/GameRendererMixin.java: method togglePostEffect not in GameRenderer
+apoli/mixin/LivingEntityRendererMixin.java: @At LivingEntityRenderState.appearsGlowing()Z
+apoli/mixin/PlayerEntityRendererMixin.java: @At SubmitNodeCollector.submitModelPart(Lnet/minecraft/client/model/geom/ModelPart;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/rendertype/RenderType;IILnet/minecraft/client/renderer/texture/UvMapping;)V
+apoli/mixin/RecipeManagerMixin.java: method getFirstMatch not in RecipeManager
+apoli/mixin/ServerPlayNetworkHandlerMixin.java: @At ServerPlayer.stopUsingItem()V
+apoli/mixin/ServerPlayerEntityMixin.java: @At ServerPlayer.enchantmentSeed:I
+apoli/mixin/ServerPlayerInteractionManagerMixin.java: @At ServerPlayer.isSecondaryUseActive()Z
+apoli/mixin/powers/night_vision/LightmapRenderStateExtractorMixin.java: method Lnet/minecraft/client/player/LocalPlayer;hasEffect(Lnet/minecraft/core/Holder;)Z not in LightmapRenderStateExtractor
+calio/mixin/CustomNonItalicNameMixin.java: method extractSelectedItemName(Lnet/minecraft/client/gui/GuiGraphicsExtractor;I)V not in ItemStack
+calio/mixin/CustomNonItalicNameMixin.java: @At ItemStack.has(Lnet/minecraft/core/component/DataComponentType;)Z
+calio/mixin/CustomNonItalicNameMixin.java: @At ItemStack.has(Lnet/minecraft/core/component/DataComponentType;)Z
+origins/mixin/ConduitOnLandMixin.java: @At Player.isInWaterOrRain()Z
+origins/mixin/WaterBreathingMixin.java: @At Player.isEyeInFluid(Lnet/minecraft/tags/TagKey;)Z
+
+# Manual verdicts on the flagged items (H3, 2026-10-14)
+# FIXED: HudMixin extractHotbarAndDecorations -> extractHotbar (NeoForge split the HUD into layers); CustomNonItalicNameMixin Hud -> extractSelectedItemName(GuiGraphicsExtractor;I)V (overloaded).
+# FALSE POSITIVES (method inherited or declared on a supertype, and the call site uses the subtype owner): LocalPlayer/ServerPlayer isSecondaryUseActive,
+#   setSprinting, stopUsingItem, gameEvent, getItemBySlot, isInWaterOrRain, isEyeInFluid, ServerPlayer.enchantmentSeed (Player field), ItemStack.get/has
+#   (DataComponentHolder), BlockState.getCollisionShape (BlockStateBase), SubmitNodeCollector.submitModelPart (OrderedSubmitNodeCollector default), LivingEntityRenderState.appearsGlowing.
+# FALSE POSITIVES (parser): CameraMixin / LightmapRenderStateExtractorMixin @Definition(method=...) strings; GameRendererMixin togglePostEffect and RecipeManagerMixin getFirstMatch are commented out.
+# UNSURE (need runtime): INVOKE call-site owner checks for the inherited items above (javac emits the static receiver type, which upstream already assumed);
+#   ordinal-based injections in HudMixin (getPlayerMode ordinal 0 inside extractHotbar), ElytraDenyMixin vs NeoForge's GLIDING_FLIGHT attribute path.
+
+# Added 2026-10-14 00:37 (H3), verified with javap against minecraft-patched-26.3.0.76.jar
+# ElytraDenyMixin  LivingEntity#canGlide(Z)Z RETURN — present (protected boolean canGlide(boolean)); grant (ElytraFlightPower) then deny (PreventElytraFlightPower), deny wins.
+#   Callers: LivingEntity#canGlide() -> canGlide(true); Player#canGlide -> super; LocalPlayer#canGlide -> canGlide(isNeoForge); Player#tryToStartFallFlying and LivingEntity#updateFallFlying use canGlide().
+# LavaAttributesMixin  LivingEntity#travelInLava(Vec3,double,boolean,double) — present; @ModifyArg index 0 on its single moveRelative(FVec3)V call (invokevirtual confirmed in bytecode).
+#   Audit flags it only because moveRelative is declared on Entity (inherited; call-site owner LivingEntity). OK.
+# LavaFogMixin (client)  LavaFogEnvironment#setupFog(FogData,Camera,ClientLevel,float,DeltaTracker)V TAIL — present. OK.
+
+# 2026-10-14 00:50 patched-jar audit (tools/mixin_audit_patched.py, from H6's h6-mixaudit.py + inner-class/wildcard-import support) vs minecraft-patched-26.3.0.76-merged.jar + neoforge universal + cloth-config
+# origins 11/11 PASS (after WaterBreathingMixin$UpdateAir fix), calio 8/8 PASS, apoli 74 PASS + 6 flagged, all verified false positives:
+#  LivingEntityMixin isInWaterRainOrBubble + RecipeManagerMixin getAllOfType/getFirstMatch + GameRendererMixin togglePostEffect: commented-out code
+#  ServerPlayerEntityMixin enchantmentSeed: restoreFrom bytecode has getfield/putfield ServerPlayer.enchantmentSeed (inherited field, owner ok)
+#  CameraMixin / LightmapRenderStateExtractorMixin: MixinExtras @Definition members; the invokes exist in Camera / LightmapRenderStateExtractor bytecode
+#   mixins	LivingEntityMixin	net.minecraft.world.entity.LivingEntity	FAIL	INVOKE target Lnet/minecraft/world/entity/LivingEntity;isInWaterRainOrBubble()Z
+#   mixins	RecipeManagerMixin	net.minecraft.world.item.crafting.RecipeManager	FAIL	@Shadow method getAllOfType; method getFirstMatch
+#   mixins	ServerPlayerEntityMixin	net.minecraft.server.level.ServerPlayer	FAIL	FIELD target Lnet/minecraft/server/level/ServerPlayer;enchantmentSeed:I
+#   client	CameraMixin	net.minecraft.client.Camera	FAIL	method Lnet/minecraft/client/Options;getCameraType()Lnet/minecraft/client/CameraType;; method Lnet/minecraft/client/CameraType;isFirstPerson()Z; method Lnet/minecraft/client/CameraType;isMirrored()Z
+#   client	GameRendererMixin	net.minecraft.client.renderer.GameRenderer	FAIL	method togglePostEffect
+#   client	powers.night_vision.LightmapRenderStateExtractorMixin	net.minecraft.client.renderer.LightmapRenderStateExtractor	FAIL	method Lnet/minecraft/client/player/LocalPlayer;hasEffect(Lnet/minecraft/core/Holder;)Z
+
+# 2026-10-14 01:00 body-level audit (tools/mixin_body_audit.py): every INVOKE/FIELD/NEW @At must appear in the patched method bytecode.
+# Found+fixed 3 NeoForge-patch breaks: LivingEntityMixin.modifySlipperiness (travelInAir -> BlockState.getFriction(LevelReader,BlockPos,Entity)),
+#   ItemStackMixinClient tooltip (addDetailsToTooltip -> addDetailsToTooltipTail), ServerPlayerEntityMixin.preventAvianSleep (startSleepInBed -> lambda$startSleepInBed$0).
+# After fixes: 89 checked, 0 missing. Not covered: ordinals, ModifyConstant/ModifyVariable locals, HEAD/RETURN/TAIL semantics.

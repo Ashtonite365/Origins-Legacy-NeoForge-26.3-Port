@@ -1,0 +1,150 @@
+package io.github.apace100.origins.screen;
+
+import io.github.apace100.calio.util.LazyItemStack;
+import io.github.apace100.origins.Origins;
+import io.github.apace100.origins.networking.ChooseOriginPacket;
+import io.github.apace100.origins.networking.ChooseRandomOriginPacket;
+import io.github.apace100.origins.origin.Impact;
+import io.github.apace100.origins.origin.Origin;
+import io.github.apace100.origins.origin.OriginLayer;
+import io.github.apace100.origins.origin.OriginRegistry;
+import io.github.apace100.origins.registry.ModItems;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ResolvableProfile;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class ChooseOriginScreen extends OriginDisplayScreen {
+
+	private final ArrayList<OriginLayer> layerList;
+	private int currentLayerIndex = 0;
+	private int currentOrigin = 0;
+	private final List<Origin> originSelection;
+	private int maxSelection = 0;
+
+	private Origin randomOrigin;
+	
+	public ChooseOriginScreen(ArrayList<OriginLayer> layerList, int currentLayerIndex, boolean showDirtBackground) {
+		super(Component.translatable(Origins.MODID + ".screen.choose_origin"), showDirtBackground);
+		this.layerList = layerList;
+		this.currentLayerIndex = currentLayerIndex;
+		this.originSelection = new ArrayList<>(10);
+		Player player = Minecraft.getInstance().player;
+		OriginLayer currentLayer = layerList.get(currentLayerIndex);
+		List<Identifier> originIdentifiers = currentLayer.getOrigins(player);
+		originIdentifiers.forEach(originId -> {
+			Origin origin = OriginRegistry.get(originId);
+			if(origin.isChoosable()) {
+				ItemStack displayItem = origin.getDisplayItem();
+				if(displayItem.getItem() == Items.PLAYER_HEAD) {
+					if(!displayItem.has(DataComponents.PROFILE)) {
+						displayItem.set(DataComponents.PROFILE, ResolvableProfile.createResolved(player.getGameProfile()));
+					}
+				}
+				this.originSelection.add(origin);
+			}
+		});
+		originSelection.sort((a, b) -> {
+			int impDelta = a.getImpact().getImpactValue() - b.getImpact().getImpactValue();
+			return impDelta == 0 ? a.getOrder() - b.getOrder() : impDelta;
+		});
+		maxSelection = originSelection.size();
+		if(currentLayer.isRandomAllowed() && currentLayer.getRandomOrigins(player).size() > 0) {
+			maxSelection += 1;
+		}
+		if(maxSelection == 0) {
+			openNextLayerScreen();
+		}
+		Origin newOrigin = getCurrentOriginInternal();
+		showOrigin(newOrigin, layerList.get(currentLayerIndex), newOrigin == randomOrigin);
+	}
+
+	private void openNextLayerScreen() {
+		Minecraft.getInstance().gui.setScreen(new WaitForNextLayerScreen(layerList, currentLayerIndex, this.showDirtBackground));
+	}
+
+	@Override
+	public boolean shouldCloseOnEsc() {
+		return false;
+	}
+
+	@Override
+	protected void init() {
+		super.init();
+		if(maxSelection > 1) {
+			addRenderableWidget(Button.builder(Component.nullToEmpty("<"), b -> {
+				currentOrigin = (currentOrigin - 1 + maxSelection) % maxSelection;
+				Origin newOrigin = getCurrentOriginInternal();
+				showOrigin(newOrigin, layerList.get(currentLayerIndex), newOrigin == randomOrigin);
+			}).bounds(guiLeft - 40, this.height / 2 - 10, 20, 20).build());
+			addRenderableWidget(Button.builder(Component.nullToEmpty(">"), b -> {
+				currentOrigin = (currentOrigin + 1) % maxSelection;
+				Origin newOrigin = getCurrentOriginInternal();
+				showOrigin(newOrigin, layerList.get(currentLayerIndex), newOrigin == randomOrigin);
+			}).bounds(guiLeft + windowWidth + 20, this.height / 2 - 10, 20, 20).build());
+		}
+		addRenderableWidget(Button.builder(Component.translatable(Origins.MODID + ".gui.select"), b -> {
+			if(currentOrigin == originSelection.size()) {
+				ClientPacketDistributor.sendToServer(new ChooseRandomOriginPacket(layerList.get(currentLayerIndex).getIdentifier()));
+			} else {
+				ClientPacketDistributor.sendToServer(new ChooseOriginPacket(getCurrentOrigin().getIdentifier(), layerList.get(currentLayerIndex).getIdentifier()));
+			}
+			openNextLayerScreen();
+		}).bounds(guiLeft + windowWidth / 2 - 50, guiTop + windowHeight + 5, 100, 20).build());
+	}
+
+	@Override
+	protected Component getTitleText() {
+		if (getCurrentLayer().shouldOverrideChooseOriginTitle()) {
+			return Component.translatable(getCurrentLayer().getTitleChooseOriginTranslationKey());
+		}
+		return Component.translatable(Origins.MODID + ".gui.choose_origin.title", Component.translatable(getCurrentLayer().getTranslationKey()));
+	}
+
+	private Origin getCurrentOriginInternal() {
+		if(currentOrigin == originSelection.size()) {
+			if(randomOrigin == null) {
+				initRandomOrigin();
+			}
+			return randomOrigin;
+		}
+		return originSelection.get(currentOrigin);
+	}
+
+	private void initRandomOrigin() {
+		this.randomOrigin = new Origin(Origins.identifier("random"), new LazyItemStack(ModItems.ORB_OF_ORIGIN.get()), Impact.NONE, -1, Integer.MAX_VALUE);
+		MutableComponent randomOriginText = (MutableComponent)Component.nullToEmpty("");
+		List<Identifier> randoms = layerList.get(currentLayerIndex).getRandomOrigins(Minecraft.getInstance().player);
+		randoms.sort((ia, ib) -> {
+			Origin a = OriginRegistry.get(ia);
+			Origin b = OriginRegistry.get(ib);
+			int impDelta = a.getImpact().getImpactValue() - b.getImpact().getImpactValue();
+			return impDelta == 0 ? a.getOrder() - b.getOrder() : impDelta;
+		});
+		for(Identifier id : randoms) {
+			randomOriginText.append(OriginRegistry.get(id).getName());
+			randomOriginText.append(Component.nullToEmpty("\n"));
+		}
+		setRandomOriginText(randomOriginText);
+	}
+
+	@Override
+	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+		if(maxSelection == 0) {
+			openNextLayerScreen();
+			return;
+		}
+		super.extractRenderState(context, mouseX, mouseY, delta);
+	}
+}

@@ -1,0 +1,27 @@
+package io.github.apace100.apoli.mixin;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import io.github.apace100.apoli.component.PowerHolderComponent;
+import io.github.apace100.apoli.power.PhasingPower;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.ScreenEffectRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.resources.Identifier;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(ScreenEffectRenderer.class)
+public class InGameOverlayRendererMixin {
+
+    @Inject(method = "submitBlockSprite", at = @At("HEAD"), cancellable = true)
+    private static void preventInWallOverlayRendering(Identifier atlasLocation, float u0, float v0, float u1, float v1, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int color, CallbackInfo ci) {
+        Minecraft minecraftClient = Minecraft.getInstance();
+        if(minecraftClient.getCameraEntity() != null) {
+            if(PowerHolderComponent.getPowers(minecraftClient.getCameraEntity(), PhasingPower.class).size() > 0) {
+                ci.cancel();
+            }
+        }
+    }
+}

@@ -1,0 +1,46 @@
+// Personal port of Origins: Legacy 1.12.19 (+ Apoli-Legacy 2.12.13, Calio-Legacy 1.11.4), Fabric 26.3 -> NeoForge 26.3.0.76. MIT (see LICENSE*). Publish build (branch ol-publish): modId origins_legacy_port263, content namespaces unchanged.
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+version = mod_version
+group = mod_group_id
+base { archivesName = 'origins-legacy-neoforge-' + minecraft_version }
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+neoForge {
+    version = project.neo_version
+    runs {
+        server { server(); gameDirectory = project.file('server'); programArgument '--nogui' }
+        gameTestServer { type = 'gameTestServer'; gameDirectory = project.file('runs/gameTestServer') }
+    }
+    mods { origins_legacy_port263 { sourceSet sourceSets.main } }
+}
+
+repositories {
+    exclusiveContent {
+        forRepository { maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" } }
+        filter { includeGroup "maven.modrinth" }
+    }
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly 'org.jetbrains:annotations:26.0.2'
+    compileOnly 'com.demonwav.mcdev:annotations:1.0'
+    implementation "maven.modrinth:cloth-config:${clothconfig_version}"
+    // MixinExtras ships with NeoForge.
+    // CCA -> NeoForge attachments (xyz.bluspring.originslegacy.platform.component), PlayerAbilityLib -> local stub (H3),
+    // AdditionalEntityAttributes -> own attributes (H6). No Fabric API at all: see platform shim in SPLIT.md.
+    // TODO(H5): MixinSquared (neoforge artifact) or drop; mixinconstraints optional.
+    // TODO(H6): ModMenu dropped -> IConfigScreenFactory.
+}
+
+jar {
+    from('LICENSE', 'LICENSE-apoli', 'LICENSE-calio')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xmaxerrs' << '20000'
+}

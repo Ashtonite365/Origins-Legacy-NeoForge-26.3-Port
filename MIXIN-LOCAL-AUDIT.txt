@@ -1,0 +1,5 @@
+checked 179 injector/method pairs; 0 problems, 3 notes
+
+note    apoli/mixin/HungerManagerMixin.java:modifyHunger -> FoodData.add: @Local foodLevel type unresolved/LocalRef
+note    apoli/mixin/HungerManagerMixin.java:modifyHunger -> FoodData.add: @Local saturationLevel type unresolved/LocalRef
+note    apoli/mixin/LivingEntityRendererMixin.java:changeRenderLayerWhenTranslucent -> LivingEntityRenderer.extractRenderState: @Local renderState type unresolved/LocalRef
